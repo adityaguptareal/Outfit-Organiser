@@ -35,6 +35,13 @@ export const addOutfit = async (
   occasion?: string,
   season?: string
 ): Promise<Outfit> => {
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to add an outfit');
+  }
+
   const { data, error } = await supabase
     .from('outfits')
     .insert({
@@ -42,6 +49,7 @@ export const addOutfit = async (
       items,
       occasion,
       season,
+      user_id: user.id
     })
     .select()
     .single();

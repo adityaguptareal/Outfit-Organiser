@@ -67,6 +67,13 @@ export const addWardrobeItem = async (
   color: string,
   imageFile: File
 ): Promise<WardrobeItem> => {
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to add a wardrobe item');
+  }
+
   // First, upload the image to storage
   const fileExt = imageFile.name.split('.').pop();
   const fileName = `${Math.random()}.${fileExt}`;
@@ -94,6 +101,7 @@ export const addWardrobeItem = async (
       category,
       color,
       image_url: publicURL.publicUrl,
+      user_id: user.id
     })
     .select()
     .single();
