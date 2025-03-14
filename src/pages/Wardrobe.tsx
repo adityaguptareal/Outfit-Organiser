@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
 import WardrobeGrid from '@/components/Wardrobe/WardrobeGrid';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Plus, Tshirt, Menu } from 'lucide-react';
+import { Plus, Shirt, Menu } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SavedOutfits from '@/components/Outfit/SavedOutfits';
 
@@ -35,7 +34,7 @@ const Wardrobe: React.FC = () => {
         >
           <TabsList className="mb-6">
             <TabsTrigger value="items" className="flex items-center">
-              <Tshirt size={16} className="mr-2" />
+              <Shirt size={16} className="mr-2" />
               Clothing Items
             </TabsTrigger>
             <TabsTrigger value="outfits" className="flex items-center">

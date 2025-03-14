@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { ClothingItemProps } from '@/components/Wardrobe/ClothingItem';
 
@@ -18,9 +17,17 @@ export interface WardrobeItem {
 
 // Get all wardrobe items for the current user
 export const getWardrobeItems = async (): Promise<ClothingItemProps[]> => {
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to fetch wardrobe items');
+  }
+
   const { data, error } = await supabase
     .from('wardrobe_items')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -28,7 +35,7 @@ export const getWardrobeItems = async (): Promise<ClothingItemProps[]> => {
     throw error;
   }
 
-  return data.map((item: WardrobeItem) => ({
+  const mappedItems = data.map((item: WardrobeItem) => ({
     id: item.id,
     name: item.name,
     image: item.image_url,
@@ -37,13 +44,22 @@ export const getWardrobeItems = async (): Promise<ClothingItemProps[]> => {
     purchaseLink: item.purchase_link,
     isFavorite: item.is_favorite,
   }));
+  return mappedItems;
 };
 
 // Get wardrobe items by category
 export const getWardrobeItemsByCategory = async (category: string): Promise<ClothingItemProps[]> => {
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to fetch wardrobe items');
+  }
+
   const { data, error } = await supabase
     .from('wardrobe_items')
     .select('*')
+    .eq('user_id', user.id)
     .eq('category', category)
     .order('created_at', { ascending: false });
 
@@ -52,7 +68,7 @@ export const getWardrobeItemsByCategory = async (category: string): Promise<Clot
     throw error;
   }
 
-  return data.map((item: WardrobeItem) => ({
+  const mappedItems = data.map((item: WardrobeItem) => ({
     id: item.id,
     name: item.name,
     image: item.image_url,
@@ -61,6 +77,7 @@ export const getWardrobeItemsByCategory = async (category: string): Promise<Clot
     purchaseLink: item.purchase_link,
     isFavorite: item.is_favorite,
   }));
+  return mappedItems;
 };
 
 // Add a new wardrobe item
@@ -80,16 +97,21 @@ export const addWardrobeItem = async (
 
   // First, upload the image to storage
   const fileExt = imageFile.name.split('.').pop();
-  const fileName = `${Math.random()}.${fileExt}`;
-  const filePath = `${fileName}`;
+  const timestamp = Date.now();
+  const fileName = `${user.id}/${timestamp}.${fileExt}`;
+  const filePath = fileName;
 
-  const { error: uploadError } = await supabase.storage
+  // Try to upload the file directly
+  const { error: uploadError, data: uploadData } = await supabase.storage
     .from('wardrobe')
-    .upload(filePath, imageFile);
+    .upload(filePath, imageFile, {
+      cacheControl: '3600',
+      upsert: false
+    });
 
   if (uploadError) {
     console.error('Error uploading image:', uploadError);
-    throw uploadError;
+    throw new Error(`Failed to upload image: ${uploadError.message}`);
   }
 
   // Get the public URL for the uploaded image
@@ -97,17 +119,35 @@ export const addWardrobeItem = async (
     .from('wardrobe')
     .getPublicUrl(filePath);
 
+  if (!publicURL.publicUrl) {
+    throw new Error('Failed to get public URL for uploaded image');
+  }
+
+  // Test the public URL
+  try {
+    const response = await fetch(publicURL.publicUrl, { method: 'HEAD' });
+    if (!response.ok) {
+      throw new Error(`Failed to access image URL: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error testing public URL:', error);
+    throw error;
+  }
+
   // Now, add the item to the database
+  const itemData = {
+    name,
+    category,
+    color,
+    image_url: publicURL.publicUrl,
+    purchase_link: purchaseLink,
+    user_id: user.id,
+    is_favorite: false
+  };
+
   const { data, error } = await supabase
     .from('wardrobe_items')
-    .insert({
-      name,
-      category,
-      color,
-      image_url: publicURL.publicUrl,
-      purchase_link: purchaseLink,
-      user_id: user.id
-    })
+    .insert(itemData)
     .select()
     .single();
 
@@ -134,13 +174,66 @@ export const toggleFavorite = async (id: string, isFavorite: boolean): Promise<v
 
 // Delete a wardrobe item
 export const deleteWardrobeItem = async (id: string): Promise<void> => {
-  const { error } = await supabase
+  // First, get the item to get the image URL
+  const { data: item, error: fetchError } = await supabase
+    .from('wardrobe_items')
+    .select('image_url')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching item for deletion:', fetchError);
+    throw fetchError;
+  }
+
+  // If there's an image URL, extract the file path and delete from storage
+  if (item?.image_url) {
+    const filePath = item.image_url.split('/').pop();
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from('wardrobe')
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error('Error deleting image from storage:', storageError);
+        // Continue with database deletion even if storage deletion fails
+      }
+    }
+  }
+
+  // Delete the item from the database
+  const { error: deleteError } = await supabase
     .from('wardrobe_items')
     .delete()
     .eq('id', id);
 
+  if (deleteError) {
+    console.error('Error deleting wardrobe item:', deleteError);
+    throw deleteError;
+  }
+};
+
+// Update a wardrobe item
+export const updateWardrobeItem = async (
+  id: string,
+  updates: {
+    name?: string;
+    category?: string;
+    color?: string;
+    purchase_link?: string;
+  }
+): Promise<WardrobeItem> => {
+  const { data, error } = await supabase
+    .from('wardrobe_items')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
   if (error) {
-    console.error('Error deleting wardrobe item:', error);
+    console.error('Error updating wardrobe item:', error);
     throw error;
   }
+
+  return data;
 };

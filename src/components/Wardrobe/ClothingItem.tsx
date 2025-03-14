@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Tag, Heart, ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { Tag, Heart, ExternalLink, Pencil, Trash2, Image as ImageIcon } from 'lucide-react';
 import AnimatedCard from '../UI/AnimatedCard';
 import {
   AlertDialog,
@@ -12,9 +11,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/UI/alert-dialog';
 import { toggleFavorite, deleteWardrobeItem } from '@/services/wardrobeService';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ClothingItemProps {
   id: string;
@@ -46,15 +47,48 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
   className,
 }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   
+  useEffect(() => {
+    setIsImageLoaded(false);
+    setImageError(false);
+    setRetryCount(0);
+  }, [image]);
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    if (retryCount < 3) {
+      setRetryCount(prev => prev + 1);
+      const img = new Image();
+      img.src = image;
+      img.onload = () => {
+        setIsImageLoaded(true);
+      };
+      img.onerror = () => {
+        setImageError(true);
+        setIsImageLoaded(true);
+      };
+    } else {
+      setImageError(true);
+      setIsImageLoaded(true);
+    }
+  };
+
+  const handleImageLoad = () => {
+    setIsImageLoaded(true);
+  };
+
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await toggleFavorite(id, !favorite);
       setFavorite(!favorite);
+      queryClient.invalidateQueries({ queryKey: ['wardrobeItems', user?.id] });
       toast({
         title: favorite ? "Removed from favorites" : "Added to favorites",
         description: `${name} has been ${favorite ? "removed from" : "added to"} your favorites.`,
@@ -116,16 +150,26 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
         onClick={onClick}
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
-          <img
-            src={image}
-            alt={name}
-            className={cn(
-              'h-full w-full object-cover object-center transition-all duration-300 group-hover:scale-105',
-              isImageLoaded ? 'opacity-100' : 'opacity-0'
-            )}
-            onLoad={() => setIsImageLoaded(true)}
-          />
-          {!isImageLoaded && (
+          {!imageError ? (
+            <img
+              src={image}
+              alt={name}
+              className={cn(
+                'h-full w-full object-cover object-center transition-all duration-300 group-hover:scale-105',
+                isImageLoaded ? 'opacity-100' : 'opacity-0'
+              )}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-muted">
+              <ImageIcon className="h-12 w-12 text-muted-foreground" />
+            </div>
+          )}
+          
+          {!isImageLoaded && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
             </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ClothingItem, { ClothingItemProps } from './ClothingItem';
@@ -8,10 +7,11 @@ import { getWardrobeItems, getWardrobeItemsByCategory } from '@/services/wardrob
 import { Loader2, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const categories = [
   { id: 'all', label: 'All Items' },
+  { id: 'favorites', label: 'Favorites' },
   { id: 'tops', label: 'Tops' },
   { id: 'bottoms', label: 'Bottoms' },
   { id: 'outerwear', label: 'Outerwear' },
@@ -35,6 +35,7 @@ const WardrobeGrid: React.FC<WardrobeGridProps> = ({
   const [activeCategory, setActiveCategory] = useState(categoryFilter || 'all');
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Set activeCategory when categoryFilter prop changes
   useEffect(() => {
@@ -52,6 +53,7 @@ const WardrobeGrid: React.FC<WardrobeGridProps> = ({
   const filterItemsByCategory = (category: string) => {
     if (!allItems) return [];
     if (category === 'all') return allItems;
+    if (category === 'favorites') return allItems.filter(item => item.isFavorite);
     return allItems.filter(item => 
       item.category.toLowerCase() === category.toLowerCase()
     );
@@ -72,6 +74,10 @@ const WardrobeGrid: React.FC<WardrobeGridProps> = ({
   const handleItemDelete = () => {
     // Invalidate the query to refresh the data
     queryClient.invalidateQueries({ queryKey: ['wardrobeItems', user?.id] });
+  };
+
+  const handleItemEdit = (id: string) => {
+    navigate(`/edit-item/${id}`);
   };
 
   if (error) {
@@ -117,6 +123,7 @@ const WardrobeGrid: React.FC<WardrobeGridProps> = ({
                       delay={index * 100}
                       onClick={() => handleItemClick(item)}
                       onDelete={handleItemDelete}
+                      onEdit={handleItemEdit}
                     />
                   ))}
                 </div>
@@ -158,6 +165,7 @@ const WardrobeGrid: React.FC<WardrobeGridProps> = ({
                     delay={index * 100}
                     onClick={() => handleItemClick(item)}
                     onDelete={handleItemDelete}
+                    onEdit={handleItemEdit}
                   />
                 ))}
               </div>
