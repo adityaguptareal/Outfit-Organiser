@@ -8,6 +8,7 @@ export interface WardrobeItem {
   category: string;
   color: string;
   image_url: string;
+  purchase_link?: string;
   is_favorite: boolean;
   tags?: string[];
   user_id: string;
@@ -33,6 +34,7 @@ export const getWardrobeItems = async (): Promise<ClothingItemProps[]> => {
     image: item.image_url,
     category: item.category,
     color: item.color,
+    purchaseLink: item.purchase_link,
     isFavorite: item.is_favorite,
   }));
 };
@@ -56,6 +58,7 @@ export const getWardrobeItemsByCategory = async (category: string): Promise<Clot
     image: item.image_url,
     category: item.category,
     color: item.color,
+    purchaseLink: item.purchase_link,
     isFavorite: item.is_favorite,
   }));
 };
@@ -65,7 +68,8 @@ export const addWardrobeItem = async (
   name: string,
   category: string,
   color: string,
-  imageFile: File
+  imageFile: File,
+  purchaseLink: string = ''
 ): Promise<WardrobeItem> => {
   // Get current user
   const { data: { user } } = await supabase.auth.getUser();
@@ -101,6 +105,7 @@ export const addWardrobeItem = async (
       category,
       color,
       image_url: publicURL.publicUrl,
+      purchase_link: purchaseLink,
       user_id: user.id
     })
     .select()

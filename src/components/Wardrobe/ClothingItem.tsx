@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Tag, Heart } from 'lucide-react';
+import { Tag, Heart, ExternalLink } from 'lucide-react';
 import AnimatedCard from '../UI/AnimatedCard';
 
 export interface ClothingItemProps {
@@ -10,6 +10,7 @@ export interface ClothingItemProps {
   image: string;
   category: string;
   color: string;
+  purchaseLink?: string;
   isFavorite?: boolean;
   delay?: number;
   onClick?: () => void;
@@ -22,6 +23,7 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
   image,
   category,
   color,
+  purchaseLink,
   isFavorite = false,
   delay = 0,
   onClick,
@@ -33,6 +35,13 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setFavorite(!favorite);
+  };
+
+  const handlePurchaseLinkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (purchaseLink) {
+      window.open(purchaseLink, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -48,10 +57,15 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
           alt={name}
           className={cn(
             'h-full w-full object-cover object-center transition-all duration-300 group-hover:scale-105',
-            isImageLoaded ? 'image-loaded' : 'image-loading'
+            isImageLoaded ? 'opacity-100' : 'opacity-0'
           )}
           onLoad={() => setIsImageLoaded(true)}
         />
+        {!isImageLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          </div>
+        )}
         
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         
@@ -63,15 +77,27 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
                 {category}
               </span>
             </div>
-            <button 
-              className={cn(
-                "p-1.5 rounded-full transition-all duration-300",
-                favorite ? "bg-red-500/90 text-white" : "bg-background/70 text-muted-foreground hover:text-foreground"
+            <div className="flex items-center space-x-2">
+              {purchaseLink && (
+                <button 
+                  className="p-1.5 rounded-full bg-background/70 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={handlePurchaseLinkClick}
+                  title="Purchase Link"
+                >
+                  <ExternalLink size={14} />
+                </button>
               )}
-              onClick={handleFavoriteClick}
-            >
-              <Heart size={14} className={favorite ? "fill-current" : ""} />
-            </button>
+              <button 
+                className={cn(
+                  "p-1.5 rounded-full transition-all duration-300",
+                  favorite ? "bg-red-500/90 text-white" : "bg-background/70 text-muted-foreground hover:text-foreground"
+                )}
+                onClick={handleFavoriteClick}
+                title={favorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Heart size={14} className={favorite ? "fill-current" : ""} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

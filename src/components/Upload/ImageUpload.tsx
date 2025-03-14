@@ -19,6 +19,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagePreview }) => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [color, setColor] = useState('');
+  const [purchaseLink, setPurchaseLink] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const inputFileRef = useRef<HTMLInputElement>(null);
@@ -53,6 +54,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagePreview }) => {
     setName('');
     setCategory('');
     setColor('');
+    setPurchaseLink('');
     setImage(null);
     setImagePreview(null);
     
@@ -73,7 +75,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagePreview }) => {
     if (!image || !name || !category || !color) {
       toast({
         title: "Missing Information",
-        description: "Please fill out all fields and select an image.",
+        description: "Please fill out all required fields and select an image.",
         variant: "destructive"
       });
       return;
@@ -82,7 +84,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagePreview }) => {
     setIsUploading(true);
     
     try {
-      await addWardrobeItem(name, category, color, image);
+      await addWardrobeItem(name, category, color, image, purchaseLink);
       
       toast({
         title: "Success!",
@@ -174,6 +176,17 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onImagePreview }) => {
                 <SelectItem value="orange">Orange</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="purchase-link">Purchase Link (Optional)</Label>
+            <Input
+              id="purchase-link"
+              type="url"
+              value={purchaseLink}
+              onChange={(e) => setPurchaseLink(e.target.value)}
+              placeholder="https://example.com/product"
+            />
           </div>
           
           <Button type="submit" className="w-full" disabled={isUploading}>

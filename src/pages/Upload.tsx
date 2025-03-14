@@ -24,16 +24,16 @@ const Upload: React.FC = () => {
             <ImageUpload onImagePreview={handleImagePreview} />
           </div>
           
-          <div>
-            <Card className="overflow-hidden">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-semibold mb-3">Preview</h2>
+            <Card className="overflow-hidden flex-1">
               {previewUrl ? (
-                <div className="aspect-square relative">
+                <div className="aspect-square relative flex items-center justify-center bg-muted">
                   <img 
                     src={previewUrl} 
                     alt="Image preview" 
-                    className="w-full h-full object-cover"
+                    className="max-h-full max-w-full object-contain"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
               ) : (
                 <div className="aspect-square flex items-center justify-center bg-muted text-muted-foreground">
@@ -41,6 +41,9 @@ const Upload: React.FC = () => {
                 </div>
               )}
             </Card>
+            <p className="text-sm text-muted-foreground mt-2">
+              This is how your item will appear in your wardrobe.
+            </p>
           </div>
         </div>
       </div>
