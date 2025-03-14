@@ -1,192 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import ClothingItem, { ClothingItemProps } from './ClothingItem';
-import { cn } from '@/lib/utils';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getWardrobeItems, getWardrobeItemsByCategory } from '@/services/wardrobeService';
-import { Loader2, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getWardrobeItems } from '@/services/wardrobeService';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
 
+// Define categories
 const categories = [
   { id: 'all', label: 'All Items' },
   { id: 'favorites', label: 'Favorites' },
   { id: 'tops', label: 'Tops' },
   { id: 'bottoms', label: 'Bottoms' },
-  { id: 'outerwear', label: 'Outerwear' },
   { id: 'footwear', label: 'Footwear' },
   { id: 'accessories', label: 'Accessories' },
 ];
 
-interface WardrobeGridProps {
-  className?: string;
+export interface WardrobeGridProps {
+  items?: ClothingItemProps[];
+  categoryFilter?: string;
   onSelectItem?: (item: ClothingItemProps) => void;
   selectionMode?: boolean;
-  categoryFilter?: string;
+  className?: string;
+  isLoading?: boolean;
 }
 
-const WardrobeGrid: React.FC<WardrobeGridProps> = ({ 
-  className, 
-  onSelectItem, 
+const WardrobeGrid: React.FC<WardrobeGridProps> = ({
+  items: propItems,
+  categoryFilter: propCategoryFilter = 'all',
+  onSelectItem,
   selectionMode = false,
-  categoryFilter
+  className,
+  isLoading: propIsLoading = false,
 }) => {
-  const [activeCategory, setActiveCategory] = useState(categoryFilter || 'all');
+  const [categoryFilter, setCategoryFilter] = useState(propCategoryFilter);
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
-  // Set activeCategory when categoryFilter prop changes
-  useEffect(() => {
-    if (categoryFilter) {
-      setActiveCategory(categoryFilter);
-    }
-  }, [categoryFilter]);
-
-  const { data: allItems, isLoading, error } = useQuery({
+  // Fetch items if not provided as props
+  const { data: fetchedItems, isLoading: isQueryLoading, refetch } = useQuery({
     queryKey: ['wardrobeItems', user?.id],
     queryFn: getWardrobeItems,
-    enabled: !!user,
+    enabled: !propItems && !!user,
   });
 
-  const filterItemsByCategory = (category: string) => {
-    if (!allItems) return [];
-    if (category === 'all') return allItems;
-    if (category === 'favorites') return allItems.filter(item => item.isFavorite);
-    return allItems.filter(item => 
-      item.category.toLowerCase() === category.toLowerCase()
-    );
-  };
-
-  const handleCategoryChange = (value: string) => {
-    setActiveCategory(value);
-  };
-
-  const handleItemClick = (item: ClothingItemProps) => {
-    if (onSelectItem) {
-      onSelectItem(item);
-    } else {
-      console.log(`Selected item: ${item.name}`);
-    }
-  };
+  const items = propItems || fetchedItems || [];
+  const isLoading = propIsLoading || isQueryLoading;
 
   const handleItemDelete = () => {
-    // Invalidate the query to refresh the data
-    queryClient.invalidateQueries({ queryKey: ['wardrobeItems', user?.id] });
+    // Invalidate the query to refetch items
+    refetch();
   };
 
-  const handleItemEdit = (id: string) => {
-    navigate(`/edit-item/${id}`);
-  };
-
-  if (error) {
-    return (
-      <div className="py-16 text-center">
-        <p className="text-destructive">Error loading wardrobe items</p>
-      </div>
-    );
-  }
+  // Filter items based on category
+  const filteredItems = items.filter(item => {
+    if (categoryFilter === 'all') return true;
+    if (categoryFilter === 'favorites') return item.isFavorite;
+    return item.category === categoryFilter;
+  });
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {!categoryFilter && (
-        <Tabs 
-          value={activeCategory} 
-          onValueChange={handleCategoryChange}
-          className="w-full"
-        >
-          <TabsList className="w-full h-auto flex flex-wrap justify-start mb-6 gap-2 bg-transparent">
-            {categories.map((category) => (
-              <TabsTrigger 
-                key={category.id} 
-                value={category.id}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                {category.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            categories.map((category) => (
-              <TabsContent key={category.id} value={category.id} className="mt-0">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
-                  {filterItemsByCategory(category.id).map((item, index) => (
-                    <ClothingItem
-                      key={item.id}
-                      {...item}
-                      delay={index * 100}
-                      onClick={() => handleItemClick(item)}
-                      onDelete={handleItemDelete}
-                      onEdit={handleItemEdit}
-                    />
-                  ))}
-                </div>
-                
-                {filterItemsByCategory(category.id).length === 0 && (
-                  <div className="py-16 text-center flex flex-col items-center gap-4">
-                    <p className="text-muted-foreground">
-                      {allItems && allItems.length > 0 
-                        ? 'No items in this category yet' 
-                        : 'Your wardrobe is empty. Upload some items to get started!'}
-                    </p>
-                    <Button asChild>
-                      <Link to="/upload">
-                        <Plus size={16} className="mr-2" />
-                        Add Item
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
-            ))
-          )}
-        </Tabs>
-      )}
+    <div className="space-y-6">
+      {/* Category filter buttons - fixed height to prevent layout shift */}
+      <div className="flex flex-wrap gap-2 min-h-[40px]">
+        {categories.map(category => (
+          <Button
+            key={category.id}
+            variant={categoryFilter === category.id ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCategoryFilter(category.id)}
+            className="rounded-full"
+          >
+            {category.label}
+          </Button>
+        ))}
+      </div>
 
-      {categoryFilter && (
-        <>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="mt-0">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
-                {filterItemsByCategory(categoryFilter).map((item, index) => (
-                  <ClothingItem
-                    key={item.id}
-                    {...item}
-                    delay={index * 100}
-                    onClick={() => handleItemClick(item)}
-                    onDelete={handleItemDelete}
-                    onEdit={handleItemEdit}
-                  />
-                ))}
-              </div>
-              
-              {filterItemsByCategory(categoryFilter).length === 0 && (
-                <div className="py-16 text-center flex flex-col items-center gap-4">
-                  <p className="text-muted-foreground">
-                    No items in this category yet
-                  </p>
-                  <Button asChild>
-                    <Link to="/upload">
-                      <Plus size={16} className="mr-2" />
-                      Add Item
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
+      {/* Container with minimum height to prevent layout collapse */}
+      <div className="min-h-[300px]">
+        {isLoading ? (
+          // Show placeholder items when loading
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <div
+                key={`skeleton-${index}`}
+                className="aspect-square rounded-lg bg-muted animate-pulse"
+              />
+            ))}
+          </div>
+        ) : filteredItems.length > 0 ? (
+          // Show actual items
+          <div className={cn(
+            "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4",
+            className
+          )}>
+            {filteredItems.map(item => (
+              <ClothingItem
+                key={item.id}
+                {...item}
+                onSelect={onSelectItem}
+                onDelete={handleItemDelete}
+                selectionMode={selectionMode}
+              />
+            ))}
+          </div>
+        ) : (
+          // Show empty state
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              {categoryFilter === 'all' 
+                ? "No items in your wardrobe yet." 
+                : categoryFilter === 'favorites'
+                  ? "No favorite items yet. Click the heart icon on items to add them to favorites."
+                  : `No ${categoryFilter} in your wardrobe yet.`}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

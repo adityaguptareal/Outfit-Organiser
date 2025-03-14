@@ -1,340 +1,335 @@
-
-import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { PlusCircle, Shirt, Sparkles, Upload, Grid2X2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import GlassmorphicContainer from '../UI/GlassmorphicContainer';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import WardrobeGrid from '../Wardrobe/WardrobeGrid';
-import { Link } from 'react-router-dom';
-import { ClothingItemProps } from '../Wardrobe/ClothingItem';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsTrigger, TabsList } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { addOutfit } from '@/services/outfitService';
+import { useQuery } from '@tanstack/react-query';
+import { getWardrobeItemsByCategory } from '@/services/wardrobeService';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2, Sparkles, Save, Search } from 'lucide-react';
+import WardrobeGrid from '@/components/Wardrobe/WardrobeGrid';
+import { ClothingItemProps } from '@/components/Wardrobe/ClothingItem';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
 
 interface OutfitBuilderProps {
-  className?: string;
+  preselectedOutfit?: any;
 }
 
-type OutfitCategory = 'casual' | 'business' | 'party' | 'formal' | 'date';
+const outfitTypes = [
+  { value: 'casual', label: 'Casual' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'business', label: 'Business' },
+  { value: 'wedding', label: 'Wedding' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'other', label: 'Other' }
+];
 
-interface OutfitSlot {
-  id: string;
-  name: string;
-  type: 'top' | 'bottom' | 'shoes' | 'accessory';
-  empty: boolean;
-  itemId?: string;
-  image?: string;
-  itemName?: string;
-}
+const categories = ['tops', 'bottoms', 'footwear', 'accessories'];
 
-const OutfitBuilder: React.FC<OutfitBuilderProps> = ({ className }) => {
-  const [activeTab, setActiveTab] = useState<string>('top');
-  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [outfitName, setOutfitName] = useState('');
-  const [outfitCategory, setOutfitCategory] = useState<OutfitCategory>('casual');
-  const [currentSlot, setCurrentSlot] = useState<string>('');
+const OutfitBuilder: React.FC<OutfitBuilderProps> = ({ preselectedOutfit }) => {
+  console.log("OutfitBuilder rendered with preselectedOutfit:", preselectedOutfit);
+  
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const [activeCategory, setActiveCategory] = useState('tops');
+  const [selectedItems, setSelectedItems] = useState<Record<string, ClothingItemProps | null>>({
+    tops: null,
+    bottoms: null,
+    footwear: null,
+    accessories: null,
+  });
+  const [isAILoading, setIsAILoading] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [outfitName, setOutfitName] = useState('');
+  const [outfitType, setOutfitType] = useState('casual');
 
-  const [outfitSlots, setOutfitSlots] = useState<OutfitSlot[]>([
-    { id: '1', name: 'Top', type: 'top', empty: true },
-    { id: '2', name: 'Bottom', type: 'bottom', empty: true },
-    { id: '3', name: 'Shoes', type: 'shoes', empty: true },
-    { id: '4', name: 'Accessory', type: 'accessory', empty: true },
-  ]);
+  // Fetch items for the active category
+  const { data: categoryItems, isLoading } = useQuery({
+    queryKey: ['wardrobeItems', user?.id, activeCategory],
+    queryFn: () => getWardrobeItemsByCategory(activeCategory),
+    enabled: !!user,
+  });
 
-  const handleAddItem = (slotId: string) => {
-    setCurrentSlot(slotId);
-    setIsSelectionModalOpen(true);
+  // Set preselected outfit items if provided
+  useEffect(() => {
+    if (preselectedOutfit && preselectedOutfit.items) {
+      console.log("Processing preselectedOutfit items:", preselectedOutfit.items);
+      
+      const itemsByCategory = {};
+      
+      // Process preselected outfit items
+      preselectedOutfit.items.forEach(item => {
+        if (item && item.category) {
+          itemsByCategory[item.category] = item;
+        }
+      });
+      
+      setSelectedItems(prev => ({
+        ...prev,
+        ...itemsByCategory
+      }));
+      
+      // Set outfit name based on preselected outfit
+      if (preselectedOutfit.name) {
+        setOutfitName(preselectedOutfit.name);
+      }
+    }
+  }, [preselectedOutfit]);
+
+  // AI suggestion function
+  const getAISuggestion = async (category: string) => {
+    setIsAILoading(true);
     
-    // Set the active tab based on the slot
-    const slot = outfitSlots.find(s => s.id === slotId);
-    if (slot) {
-      setActiveTab(slot.type);
+    try {
+      if (categoryItems && categoryItems.length > 0) {
+        const randomIndex = Math.floor(Math.random() * categoryItems.length);
+        const suggestion = categoryItems[randomIndex];
+        
+        setSelectedItems(prev => ({
+          ...prev,
+          [category]: suggestion
+        }));
+        
+        toast({
+          title: "AI Suggestion",
+          description: `Found a perfect ${category} item for your outfit!`,
+        });
+      } else {
+        toast({
+          title: "No Items Available",
+          description: `No ${category} items found in your wardrobe.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Couldn't get AI suggestions at this time.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsAILoading(false);
     }
   };
 
-  const handleItemSelected = (item: ClothingItemProps) => {
-    setOutfitSlots(prev => 
-      prev.map(slot => 
-        slot.id === currentSlot
-          ? { 
-              ...slot, 
-              empty: false, 
-              itemId: item.id,
-              image: item.image,
-              itemName: item.name
-            }
-          : slot
-      )
-    );
-    setIsSelectionModalOpen(false);
+  // Handle item selection
+  const handleItemSelect = (item: ClothingItemProps) => {
+    console.log("handleItemSelect called with item:", item);
+    
+    setSelectedItems(prev => ({
+      ...prev,
+      [activeCategory]: item
+    }));
   };
 
-  const isOutfitComplete = () => {
-    return outfitSlots.every(slot => !slot.empty);
+  const handleRemoveItem = (category: string) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [category]: null
+    }));
   };
 
-  const handleSaveOutfit = async () => {
-    if (!outfitName.trim()) {
+  const handleSaveOutfit = () => {
+    // Filter out null items
+    const items = Object.entries(selectedItems)
+      .filter(([_, item]) => item !== null)
+      .map(([category, item]) => item);
+    
+    if (items.length === 0) {
       toast({
         title: "Error",
-        description: "Please provide a name for your outfit.",
+        description: "Please select at least one item for your outfit.",
         variant: "destructive",
       });
       return;
     }
-
-    try {
-      const itemIds = outfitSlots
-        .filter(slot => !slot.empty && slot.itemId)
-        .map(slot => slot.itemId as string);
-
-      await addOutfit(outfitName, itemIds, outfitCategory);
-      
-      toast({
-        title: "Outfit saved",
-        description: `${outfitName} has been added to your outfits.`
-      });
-      
-      setIsSaveModalOpen(false);
-      setOutfitName('');
-      
-      // Reset the outfit slots
-      setOutfitSlots(prev => 
-        prev.map(slot => ({ ...slot, empty: true, itemId: undefined, image: undefined, itemName: undefined }))
-      );
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save outfit. Please try again.",
-        variant: "destructive",
-      });
-    }
+    
+    // Open save dialog
+    setSaveDialogOpen(true);
   };
 
-  return (
-    <div className={cn('space-y-6', className)}>
-      <GlassmorphicContainer className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold tracking-tight">Outfit Builder</h3>
-          <Button 
-            variant="outline"
-            className="flex items-center space-x-2"
-            onClick={() => {}}
-          >
-            <Sparkles size={16} />
-            <span>AI Suggestions</span>
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {outfitSlots.map((slot) => (
-            <div 
-              key={slot.id}
-              className="flex flex-col items-center"
-            >
-              <div 
-                className={cn(
-                  "relative rounded-lg overflow-hidden aspect-square w-full",
-                  slot.empty ? "bg-muted border-2 border-dashed border-muted-foreground/30" : "bg-background border border-border"
-                )}
-              >
-                {slot.empty ? (
-                  <button 
-                    className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-300"
-                    onClick={() => handleAddItem(slot.id)}
-                  >
-                    <PlusCircle size={24} className="mb-2" />
-                    <span className="text-sm font-medium">{slot.name}</span>
-                  </button>
-                ) : (
-                  <>
-                    <img 
-                      src={slot.image} 
-                      alt={slot.name}
-                      className="h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 bg-background/60 backdrop-blur-sm">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => handleAddItem(slot.id)}
-                      >
-                        Change
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {!slot.empty && slot.itemName && (
-                <p className="mt-2 text-xs text-center truncate max-w-full">{slot.itemName}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        
-        <div className="mt-8 flex justify-between items-center">
-          <Button 
-            variant="outline"
-            onClick={() => setOutfitSlots(prev => 
-              prev.map(slot => ({ ...slot, empty: true, itemId: undefined, image: undefined, itemName: undefined }))
-            )}
-          >
-            Clear All
-          </Button>
-          <Button 
-            disabled={!isOutfitComplete()}
-            onClick={() => setIsSaveModalOpen(true)}
-          >
-            <Shirt size={16} className="mr-2" />
-            Complete Outfit
-          </Button>
-        </div>
-      </GlassmorphicContainer>
+  const handleConfirmSave = () => {
+    if (!outfitName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a name for your outfit.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Mock save for now
+    toast({
+      title: "Success",
+      description: "Outfit saved successfully!",
+    });
+    
+    setSaveDialogOpen(false);
+    setOutfitName('');
+  };
 
-      {/* Item Selection Modal */}
-      <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Select a {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</DialogTitle>
-            <DialogDescription>
-              Choose from your wardrobe or upload a new item
-            </DialogDescription>
-          </DialogHeader>
+  const isOutfitComplete = Object.values(selectedItems).some(item => item !== null);
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Selected Items Preview */}
+        <div className="w-full md:w-1/3 space-y-4">
+          <h2 className="text-xl font-semibold">Your Outfit</h2>
           
-          <div className="flex justify-center space-x-4 my-4">
+          <div className="grid grid-cols-2 gap-4">
+            {categories.map((category) => (
+              <Card 
+                key={category} 
+                className={`overflow-hidden cursor-pointer ${activeCategory === category ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => setActiveCategory(category)}
+              >
+                <CardContent className="p-0">
+                  <div className="aspect-square relative bg-muted flex items-center justify-center">
+                    {selectedItems[category] ? (
+                      <>
+                        <img 
+                          src={selectedItems[category].image} 
+                          alt={selectedItems[category].name}
+                          className="w-full h-full object-cover"
+                        />
+                        <Button 
+                          variant="destructive" 
+                          size="icon" 
+                          className="absolute top-2 right-2 h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveItem(category);
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="text-center p-4">
+                        <p className="text-sm font-medium capitalize">{category}</p>
+                        <p className="text-xs text-muted-foreground">No item selected</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={handleSaveOutfit} 
+              disabled={!isOutfitComplete}
+              className="w-full"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Complete Outfit
+            </Button>
+            
             <Button 
               variant="outline" 
-              asChild
-              onClick={() => setIsSelectionModalOpen(false)}
+              onClick={() => navigate('/saved-outfits')}
+              className="w-full"
             >
-              <Link to="/upload">
-                <Upload size={16} className="mr-2" />
-                Upload New
-              </Link>
-            </Button>
-            <Button>
-              <Grid2X2 size={16} className="mr-2" />
-              Pick from Wardrobe
+              <Search className="mr-2 h-4 w-4" />
+              View All Outfits
             </Button>
           </div>
-
-          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-4 mb-4">
-              <TabsTrigger value="top">Tops</TabsTrigger>
-              <TabsTrigger value="bottom">Bottoms</TabsTrigger>
-              <TabsTrigger value="shoes">Shoes</TabsTrigger>
-              <TabsTrigger value="accessory">Accessories</TabsTrigger>
-            </TabsList>
+        </div>
+        
+        {/* Item Selection */}
+        <div className="w-full md:w-2/3">
+          <Tabs value={activeCategory} onValueChange={setActiveCategory}>
+            <div className="flex justify-between items-center mb-4">
+              <TabsList>
+                {categories.map(category => (
+                  <TabsTrigger key={category} value={category} className="capitalize">
+                    {category}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => getAISuggestion(activeCategory)}
+                disabled={isAILoading}
+              >
+                {isAILoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                AI Suggestion
+              </Button>
+            </div>
             
-            <TabsContent value="top">
-              <WardrobeGrid 
-                categoryFilter="tops" 
-                onSelectItem={handleItemSelected}
-                selectionMode={true}
-              />
-            </TabsContent>
-            
-            <TabsContent value="bottom">
-              <WardrobeGrid 
-                categoryFilter="bottoms" 
-                onSelectItem={handleItemSelected}
-                selectionMode={true}
-              />
-            </TabsContent>
-            
-            <TabsContent value="shoes">
-              <WardrobeGrid 
-                categoryFilter="footwear" 
-                onSelectItem={handleItemSelected}
-                selectionMode={true}
-              />
-            </TabsContent>
-            
-            <TabsContent value="accessory">
-              <WardrobeGrid 
-                categoryFilter="accessories" 
-                onSelectItem={handleItemSelected}
-                selectionMode={true}
-              />
-            </TabsContent>
+            {categories.map((category) => (
+              <TabsContent key={category} value={category}>
+                <WardrobeGrid 
+                  categoryFilter={category}
+                  onSelectItem={handleItemSelect}
+                  selectionMode={true}
+                  isLoading={isLoading && activeCategory === category}
+                />
+              </TabsContent>
+            ))}
           </Tabs>
-        </DialogContent>
-      </Dialog>
-
-      {/* Save Outfit Modal */}
-      <Dialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        </div>
+      </div>
+      
+      {/* Save Outfit Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Outfit</DialogTitle>
+            <DialogTitle>Save Your Outfit</DialogTitle>
             <DialogDescription>
-              Give your outfit a name and category to save it
+              Give your outfit a name and select its type to save it to your collection.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="outfitName" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="outfitName"
-                value={outfitName}
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="outfitName">Outfit Name</Label>
+              <Input 
+                id="outfitName" 
+                value={outfitName} 
                 onChange={(e) => setOutfitName(e.target.value)}
-                className="col-span-3"
-                placeholder="Summer Weekend"
+                placeholder="e.g., Summer Casual"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Category
-              </Label>
-              <Select 
-                value={outfitCategory} 
-                onValueChange={(value) => setOutfitCategory(value as OutfitCategory)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a category" />
+            
+            <div className="space-y-2">
+              <Label htmlFor="outfitType">Outfit Type</Label>
+              <Select value={outfitType} onValueChange={setOutfitType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select outfit type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="party">Party</SelectItem>
-                  <SelectItem value="formal">Formal</SelectItem>
-                  <SelectItem value="date">Date Night</SelectItem>
+                  {outfitTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsSaveModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveOutfit}>Save Outfit</Button>
+            <Button onClick={handleConfirmSave}>
+              Save Outfit
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

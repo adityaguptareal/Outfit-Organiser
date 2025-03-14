@@ -47,6 +47,62 @@ export const getWardrobeItems = async (): Promise<ClothingItemProps[]> => {
   return mappedItems;
 };
 
+// Get a single wardrobe item by ID
+export const getWardrobeItem = async (id: string): Promise<ClothingItemProps> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to fetch wardrobe items');
+  }
+
+  const { data, error } = await supabase
+    .from('wardrobe_items')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching wardrobe item:', error);
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    image: data.image_url,
+    category: data.category,
+    color: data.color,
+    purchaseLink: data.purchase_link,
+    isFavorite: data.is_favorite,
+  };
+};
+
+// Update a wardrobe item
+export const updateWardrobeItem = async (id: string, updates: {
+  name?: string;
+  category?: string;
+  color?: string;
+  purchase_link?: string;
+}): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to update wardrobe items');
+  }
+
+  const { error } = await supabase
+    .from('wardrobe_items')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error updating wardrobe item:', error);
+    throw error;
+  }
+};
+
 // Get wardrobe items by category
 export const getWardrobeItemsByCategory = async (category: string): Promise<ClothingItemProps[]> => {
   // Get current user
@@ -78,6 +134,46 @@ export const getWardrobeItemsByCategory = async (category: string): Promise<Clot
     isFavorite: item.is_favorite,
   }));
   return mappedItems;
+};
+
+// Delete a wardrobe item
+export const deleteWardrobeItem = async (id: string): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to delete wardrobe items');
+  }
+
+  const { error } = await supabase
+    .from('wardrobe_items')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error deleting wardrobe item:', error);
+    throw error;
+  }
+};
+
+// Toggle favorite status of a wardrobe item
+export const toggleFavorite = async (id: string, isFavorite: boolean): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to toggle favorite status');
+  }
+
+  const { error } = await supabase
+    .from('wardrobe_items')
+    .update({ is_favorite: isFavorite })
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error toggling favorite status:', error);
+    throw error;
+  }
 };
 
 // Add a new wardrobe item
@@ -153,85 +249,6 @@ export const addWardrobeItem = async (
 
   if (error) {
     console.error('Error adding wardrobe item:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-// Toggle favorite status for an item
-export const toggleFavorite = async (id: string, isFavorite: boolean): Promise<void> => {
-  const { error } = await supabase
-    .from('wardrobe_items')
-    .update({ is_favorite: isFavorite })
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error updating favorite status:', error);
-    throw error;
-  }
-};
-
-// Delete a wardrobe item
-export const deleteWardrobeItem = async (id: string): Promise<void> => {
-  // First, get the item to get the image URL
-  const { data: item, error: fetchError } = await supabase
-    .from('wardrobe_items')
-    .select('image_url')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) {
-    console.error('Error fetching item for deletion:', fetchError);
-    throw fetchError;
-  }
-
-  // If there's an image URL, extract the file path and delete from storage
-  if (item?.image_url) {
-    const filePath = item.image_url.split('/').pop();
-    if (filePath) {
-      const { error: storageError } = await supabase.storage
-        .from('wardrobe')
-        .remove([filePath]);
-
-      if (storageError) {
-        console.error('Error deleting image from storage:', storageError);
-        // Continue with database deletion even if storage deletion fails
-      }
-    }
-  }
-
-  // Delete the item from the database
-  const { error: deleteError } = await supabase
-    .from('wardrobe_items')
-    .delete()
-    .eq('id', id);
-
-  if (deleteError) {
-    console.error('Error deleting wardrobe item:', deleteError);
-    throw deleteError;
-  }
-};
-
-// Update a wardrobe item
-export const updateWardrobeItem = async (
-  id: string,
-  updates: {
-    name?: string;
-    category?: string;
-    color?: string;
-    purchase_link?: string;
-  }
-): Promise<WardrobeItem> => {
-  const { data, error } = await supabase
-    .from('wardrobe_items')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating wardrobe item:', error);
     throw error;
   }
 

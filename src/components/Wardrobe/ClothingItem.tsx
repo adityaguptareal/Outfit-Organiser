@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Tag, Heart, ExternalLink, Pencil, Trash2, Image as ImageIcon } from 'lucide-react';
-import AnimatedCard from '../UI/AnimatedCard';
+import { Tag, Heart, ExternalLink, Pencil, Trash2, Image as ImageIcon, Edit } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,11 +10,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/UI/alert-dialog';
 import { toggleFavorite, deleteWardrobeItem } from '@/services/wardrobeService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 export interface ClothingItemProps {
   id: string;
@@ -25,10 +28,11 @@ export interface ClothingItemProps {
   color: string;
   purchaseLink?: string;
   isFavorite?: boolean;
-  delay?: number;
-  onClick?: () => void;
-  onEdit?: (id: string) => void;
+  onSelect?: (item: ClothingItemProps) => void;
   onDelete?: () => void;
+  onEdit?: (id: string) => void;
+  onToggleFavorite?: () => void;
+  selectionMode?: boolean;
   className?: string;
 }
 
@@ -40,11 +44,12 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
   color,
   purchaseLink,
   isFavorite = false,
-  delay = 0,
-  onClick,
-  onEdit,
+  onSelect,
   onDelete,
-  className,
+  onEdit,
+  onToggleFavorite,
+  selectionMode = false,
+  className
 }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -54,6 +59,7 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   useEffect(() => {
     setIsImageLoaded(false);
@@ -111,9 +117,7 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onEdit) {
-      onEdit(id);
-    }
+    navigate(`/edit-item/${id}`);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -121,7 +125,7 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = async () => {
+  const handleConfirmDelete = async () => {
     try {
       await deleteWardrobeItem(id);
       setIsDeleteDialogOpen(false);
@@ -141,13 +145,25 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
     }
   };
 
+  const handleClick = () => {
+    console.log("ClothingItem clicked, selectionMode:", selectionMode);
+    console.log("onSelect function:", onSelect);
+    
+    if (selectionMode && onSelect) {
+      console.log("Calling onSelect with item:", { id, name, image, category, color, purchaseLink, isFavorite });
+      onSelect({ id, name, image, category, color, purchaseLink, isFavorite });
+    }
+  };
+
   return (
     <>
-      <AnimatedCard 
-        className={cn('group overflow-hidden', className)}
-        interactive={true}
-        delay={delay}
-        onClick={onClick}
+      <div
+        className={cn(
+          "relative group aspect-square rounded-lg overflow-hidden bg-muted",
+          selectionMode && "cursor-pointer hover:ring-2 hover:ring-primary",
+          className
+        )}
+        onClick={handleClick}
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
           {!imageError ? (
@@ -200,7 +216,7 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
                   onClick={handleEditClick}
                   title="Edit Item"
                 >
-                  <Pencil size={14} />
+                  <Edit size={14} />
                 </button>
                 <button 
                   className="p-1.5 rounded-full bg-background/70 text-destructive hover:bg-destructive/20 transition-colors"
@@ -236,22 +252,19 @@ const ClothingItem: React.FC<ClothingItemProps> = ({
             </span>
           </div>
         </div>
-      </AnimatedCard>
+      </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Item</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {name} from your wardrobe.
-              This action cannot be undone.
+              Are you sure you want to delete this item? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import EditItem from "./pages/EditItem";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import SavedOutfits from '@/pages/SavedOutfits';
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <EditItem />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/saved-outfits" 
+              element={
+                <ProtectedRoute>
+                  <SavedOutfits />
                 </ProtectedRoute>
               } 
             />
