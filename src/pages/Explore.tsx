@@ -3,6 +3,7 @@ import React from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
 import OutfitRecommendation from '@/components/Outfit/OutfitRecommendation';
 import OutfitBuilder from '@/components/Outfit/OutfitBuilder';
+import SavedOutfits from '@/components/Outfit/SavedOutfits';
 
 const Explore: React.FC = () => {
   return (
@@ -14,6 +15,8 @@ const Explore: React.FC = () => {
         </div>
         
         <OutfitBuilder />
+        
+        <SavedOutfits />
         
         <OutfitRecommendation />
       </div>
