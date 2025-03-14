@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const outfitTypes = [
   { value: 'all', label: 'All Types' },
@@ -82,8 +83,41 @@ const SavedOutfits: React.FC = () => {
   
   const handleTryOutfit = () => {
     // Navigate to outfit builder with selected outfit
-    navigate('/explore', { state: { selectedOutfit } });
+    navigate('/explore', { 
+      state: { 
+        activeTab: 'builder',
+        preselectedOutfit: {
+          ...selectedOutfit,
+          items: [
+            ...(selectedOutfit.top ? [convertToClothingItem(selectedOutfit.top, 'tops')] : []),
+            ...(selectedOutfit.bottom ? [convertToClothingItem(selectedOutfit.bottom, 'bottoms')] : []),
+            ...(selectedOutfit.shoes ? [convertToClothingItem(selectedOutfit.shoes, 'footwear')] : []),
+            ...(selectedOutfit.accessory ? [convertToClothingItem(selectedOutfit.accessory, 'accessories')] : []),
+          ]
+        }
+      } 
+    });
     setViewDialogOpen(false);
+  };
+  
+  // Helper function to convert outfit item to ClothingItemProps format
+  const convertToClothingItem = (item, category) => ({
+    id: item.id,
+    name: item.name,
+    category: category,
+    color: item.color,
+    image: item.image_url,
+    purchaseLink: item.purchase_link,
+    isFavorite: item.is_favorite
+  });
+  
+  // Get the preview image for an outfit
+  const getOutfitPreviewImage = (outfit) => {
+    if (outfit.top) return outfit.top.image_url;
+    if (outfit.bottom) return outfit.bottom.image_url;
+    if (outfit.shoes) return outfit.shoes.image_url;
+    if (outfit.accessory) return outfit.accessory.image_url;
+    return '/placeholder-outfit.jpg';
   };
   
   return (
@@ -140,7 +174,7 @@ const SavedOutfits: React.FC = () => {
                   <Card className="overflow-hidden h-full flex flex-col">
                     <div className="aspect-[4/3] overflow-hidden">
                       <img 
-                        src={outfit.preview_image || '/placeholder-outfit.jpg'} 
+                        src={getOutfitPreviewImage(outfit)} 
                         alt={outfit.name} 
                         className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
                       />

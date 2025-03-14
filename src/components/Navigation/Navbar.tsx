@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Shirt, Home, UserCircle2, Upload, Search } from 'lucide-react';
@@ -21,7 +20,7 @@ const Navbar: React.FC = () => {
     { icon: <Home size={20} />, label: 'Home', path: '/' },
     { icon: <Shirt size={20} />, label: 'Wardrobe', path: '/wardrobe' },
     { icon: <Upload size={20} />, label: 'Upload', path: '/upload' },
-    { icon: <Search size={20} />, label: 'Explore', path: '/explore' },
+    { icon: <Search size={20} />, label: 'Outfits', path: '/explore' },
     { icon: <UserCircle2 size={20} />, label: 'Profile', path: '/profile' },
   ];
 
@@ -63,8 +62,8 @@ const Navbar: React.FC = () => {
               ))}
             </nav>
             
-            <div className="flex md:hidden items-center space-x-4">
-              {navItems.slice(0, 3).map((item) => (
+            <div className="flex md:hidden items-center space-x-2">
+              {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}

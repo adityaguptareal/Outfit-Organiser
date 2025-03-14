@@ -1,103 +1,73 @@
 import React, { useState } from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsTrigger, TabsList } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import OutfitBuilder from '@/components/Outfit/OutfitBuilder';
-
-// Sample recommended outfits data
-const recommendedOutfits = [
-  {
-    id: '1',
-    name: 'Business Casual',
-    description: 'Perfect for office days',
-    image: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?q=80&w=1974&auto=format&fit=crop',
-    items: [
-      { id: 'top1', name: 'White Button-Down Shirt', category: 'tops', image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=1976&auto=format&fit=crop' },
-      { id: 'bottom1', name: 'Navy Chinos', category: 'bottoms', image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=1997&auto=format&fit=crop' },
-      { id: 'footwear1', name: 'Brown Loafers', category: 'footwear', image: 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?q=80&w=1972&auto=format&fit=crop' },
-    ]
-  },
-  {
-    id: '2',
-    name: 'Weekend Casual',
-    description: 'Relaxed weekend look',
-    image: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?q=80&w=1974&auto=format&fit=crop',
-    items: [
-      { id: 'top2', name: 'Gray T-Shirt', category: 'tops', image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=1964&auto=format&fit=crop' },
-      { id: 'bottom2', name: 'Blue Jeans', category: 'bottoms', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1926&auto=format&fit=crop' },
-      { id: 'footwear2', name: 'White Sneakers', category: 'footwear', image: 'https://images.unsplash.com/photo-1600269452121-4f2416e55c28?q=80&w=1965&auto=format&fit=crop' },
-    ]
-  },
-  {
-    id: '3',
-    name: 'Evening Out',
-    description: 'Stylish for dinner or drinks',
-    image: 'https://images.unsplash.com/photo-1617196701537-7329482cc9fe?q=80&w=1974&auto=format&fit=crop',
-    items: [
-      { id: 'top3', name: 'Black Dress Shirt', category: 'tops', image: 'https://images.unsplash.com/photo-1603252109303-2751441dd157?q=80&w=1974&auto=format&fit=crop' },
-      { id: 'bottom3', name: 'Dark Jeans', category: 'bottoms', image: 'https://images.unsplash.com/photo-1604176424472-9d7122c67c3c?q=80&w=1980&auto=format&fit=crop' },
-      { id: 'footwear3', name: 'Chelsea Boots', category: 'footwear', image: 'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?q=80&w=1935&auto=format&fit=crop' },
-    ]
-  },
-];
+import SavedOutfits from '@/components/Outfit/SavedOutfits';
+import { motion } from 'framer-motion';
+import { BookMarked, Sparkles } from 'lucide-react';
 
 const Explore: React.FC = () => {
-  const navigate = useNavigate();
-  const [selectedOutfit, setSelectedOutfit] = useState(null);
-  const [activeTab, setActiveTab] = useState('recommended');
-
-  const handleTryOutfit = (outfit) => {
-    setSelectedOutfit(outfit);
-    // Switch to outfit builder tab
-    setActiveTab('builder');
-  };
+  const [activeTab, setActiveTab] = useState<string>('saved');
 
   return (
     <MainLayout>
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-6">Explore Outfits</h1>
+      <div className="container mx-auto py-6 sm:py-8 px-4 max-w-6xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Outfits</h1>
+            <p className="text-muted-foreground mt-1">Browse your saved outfits or create new ones</p>
+          </div>
+        </div>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="recommended">Recommended Outfits</TabsTrigger>
-            <TabsTrigger value="builder">Outfit Builder</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="recommended" className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedOutfits.map((outfit) => (
-                <Card key={outfit.id} className="overflow-hidden">
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img 
-                      src={outfit.image} 
-                      alt={outfit.name} 
-                      className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
-                    />
-                  </div>
-                  <CardHeader>
-                    <CardTitle>{outfit.name}</CardTitle>
-                    <CardDescription>{outfit.description}</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button 
-                      onClick={() => handleTryOutfit(outfit)}
-                      className="w-full"
-                    >
-                      Try This Outfit
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+        <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6">
+          <Tabs 
+            defaultValue="saved" 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <div className="border-b mb-6">
+              <TabsList className="w-auto bg-transparent justify-start -mb-px">
+                <TabsTrigger 
+                  value="saved" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-4 py-2"
+                >
+                  <BookMarked size={16} className="mr-2" />
+                  Saved Outfits
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="builder" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none px-4 py-2"
+                >
+                  <Sparkles size={16} className="mr-2" />
+                  Outfit Builder
+                </TabsTrigger>
+              </TabsList>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="builder">
-            <OutfitBuilder preselectedOutfit={selectedOutfit} />
-          </TabsContent>
-        </Tabs>
+            
+            <TabsContent value="saved" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SavedOutfits />
+              </motion.div>
+            </TabsContent>
+            
+            <TabsContent value="builder" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <OutfitBuilder />
+              </motion.div>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </MainLayout>
   );
